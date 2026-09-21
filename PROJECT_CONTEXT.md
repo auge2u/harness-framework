@@ -422,6 +422,55 @@ tests/
   (3 parallel → gate → T1.5); one transient race (C3 ran suite during C2
   file write) resolved by nudge-retry pattern
 
+### Session 10: Proof Milestone — The Loop, Visible
+- **Strategic pivot**: user feedback ("I don't see anything new") reframed the
+  goal from Wave D infrastructure to the visibility milestone — the machine
+  had to become watchable, not just testable
+- **P1 Publication**: repo live at github.com/auge2u/harness-framework
+  (public, MIT). 147 files pushed via MCP push_files (no git credentials in
+  env); two-agent relay after first pusher hit context compaction at 20
+  commits; finisher completed remainder with byte-exact blob-SHA verification
+- **Token scope finding**: MCP token lacks `workflow` OAuth scope →
+  `.github/workflows/*.yml` cannot be pushed via API; staged at
+  `.github/workflows-pending/` with activation README (one `git mv` to enable)
+- **P2 The loop on a real PR**: PR #1 — demo/flawed_service.py with 3 finding
+  classes; advisory scan comment (real scan: 9.6/9.8/10.0 severities,
+  115ms checks) + closed-loop comment (3 patches, 3/3 re-verified)
+- **P3 Dashboard**: single-file HTML from live system data (dogfood scan,
+  R0→R1 delta, real 7-entry audit chain, meta-loop precision 0.188→1.0);
+  delivered as website version 5aaa1dc
+- **P4 Evidence**: PROOF.md on main — artifact index, reproduction checklist,
+  honest limits (mock-backend heuristics, corpus-scoped precision claims)
+- **Incident learnings**: (1) delegate bulk content transport to subagents —
+  1.4MB through orchestrator context is unviable; (2) nudge-retry resolves
+  transient cross-agent file races; (3) fresh-agent takeover beats grinding
+  a compacted agent to exhaustion
+
+### Session 11: Analysis Cycle v2 → Top-Band Implementation (v0.4.3)
+- **Analysis**: ANALYSIS.md v2 — vision validation (functional/purpose/
+  innovative ✅, UX/visionary ◐), top-20 across 9 dimensions scored
+  (UV×FE×TV/CX), first cycle to include browser-surface dimensions
+  (dashboard a11y/responsive)
+- **Bundle A (Security P0)**: shell=False default + allow_shell opt-in;
+  HMAC-signed audit chain with forged-rechain detection (+21 tests)
+- **Bundle B (Reflex v3)**: required_patterns + strip_prose code-region
+  gating; N_PLUS_ONE v3.0.0 → dogfood N+1 FPs 8→0; parallel run_full_audit
+  (~3.5×); corpus gate with bidirectional drift + known-FP baseline (+37)
+- **Bundle C (Data+UX)**: record_batch 4.8× (35,538 rec/s); stress test
+  10/10 stable; `harness init` onboarding command (+36)
+- **Bundle D (Dashboard, orchestrator-direct)**: WCAG AA computed contrast
+  fixes, ARIA/scope/skip-link, dark mode, mobile card-collapse, findings
+  filter → version 700a41d
+- **Cross-bundle adjudication**: C's init--with-ci embedded workflow YAML
+  triggered rule-1 on cli.py (GitHub secrets REFERENCE syntax, not a live
+  credential) → resolved via documented known_false_positives baseline in
+  the corpus fixture; v3.1 backlog: reference-syntax awareness
+- **Docs shipped to GitHub**: restructured README (product brief + technical
+  + roadmap + developer guide + Mermaid), TechBragging.md (architecture
+  résumé), Harness Framework Optimisation Planning.md (26 numbered tasks,
+  8 now ☑)
+- **Validation**: 1214/1214 passing (+94); optimisation plan 8/26 complete
+
 ---
 
 ## How to Continue Development
