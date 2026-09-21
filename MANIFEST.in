@@ -1,0 +1,8 @@
+include LICENSE
+include README.md
+include CHANGELOG.md
+include CONTRIBUTING.md
+include PROJECT_CONTEXT.md
+recursive-include src/harness *.py
+recursive-include tests *.py
+recursive-include docs *.rst *.md
