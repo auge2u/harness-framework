@@ -5,6 +5,55 @@ All notable changes to the Harness Framework are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.3] - 2026-09-21 (Analysis Cycle v2 — Top-Band Implementation)
+
+Comprehensive analysis v2 (`ANALYSIS.md`): top-20 improvements across 9
+dimensions, scored (UV×FE×TV/CX), top-10 implemented in 4 bundles.
+
+### Security (Bundle A)
+- **RunCommandTool `shell=False` default**: `shlex.split` argv execution —
+  shell metacharacters (`;`, `|`, `$(...)`, backticks) are now literal, never
+  interpreted; `allow_shell=True` opt-in preserves legacy pipe behavior
+- **Audit log HMAC-SHA256 signing**: per-entry signatures (constant-time
+  verify), `verify_chain(check_signatures=True)` catches forged re-chaining
+  (`signature_mismatch`), key rotation via keyring, `AuditLog.from_env()`,
+  unsigned-legacy tolerance
+
+### Reflex v3 (Bundle B)
+- **`Rubric.required_patterns`**: raw-substring gates (e.g. `objects.get(`)
+  distinct from token-based `required_signals`
+- **`strip_prose()`**: docstring/comment removal — required signals/patterns
+  match code regions only (keyword scoring unchanged on full text)
+- **N_PLUS_ONE_RUBRIC v3.0.0** (parent 2.0.0): dogfood N+1 FPs **8 → 0**
+- **Parallel `run_full_audit(parallel=True)`**: ~3.5× faster 6-rule audits,
+  deterministic result order
+- **Corpus gate** (`tests/fixtures/reflex_corpus_r1.json` + 12 tests):
+  bidirectional drift detection with documented `known_false_positives`
+  baseline — rubric changes that regress FP counts fail the suite
+
+### Data + UX (Bundle C)
+- **`TraceStore.record_batch()`**: single-transaction batch writes —
+  **4.8× throughput** (35,538 vs 7,455 rec/s); atomic rollback
+- **Flaky pool stress test rewritten**: barrier-synchronized, 10/10 stable
+- **`harness init`**: scaffolds `harness.yaml` (zero validation warnings),
+  `.harness/`, sample scenario, optional canonical reflex CI workflow;
+  idempotent with `--force`, `--json`
+
+### Dashboard v2 (Bundle D)
+- WCAG AA contrast (amber 5.51, red 5.9, green 5.05 — computed)
+- 18 ARIA attributes, 7 `scope` attrs, skip-link, semantic tables
+- Dark mode (`prefers-color-scheme`), reduced-motion support
+- Mobile card-collapse @560px, breakpoint audit @320/768/1024
+- Findings filter + copy-JSON (vanilla JS, no dependencies)
+
+### Docs
+- `ANALYSIS.md` (v2), `TechBragging.md`, `Harness Framework Optimisation
+  Planning.md` (8/26 tasks now ☑), restructured README — all live on GitHub
+
+### Metrics
+- Tests: 1120 → **1214 passing** (+94); suite 9.5s
+- Optimisation plan progress: 8/26 tasks complete (1.1, 1.2, 2.2, 2.3, 3.1, 3.2, 3.3, 7.4)
+
 ## [0.4.2] - 2026-09-21 (Wave C — Governance Track)
 
 ### Added
