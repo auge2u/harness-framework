@@ -43,16 +43,16 @@ flowchart TD
 
 *Goal: eliminate the identified real attack surface before wider exposure.*
 
-### 1.1 RunCommandTool shell migration — ☐ P0
-- ☐ Replace `shell=True` with `shlex.split()` + `shell=False` as the default executor
-- ☐ Add explicit `allow_shell: bool = False` constructor opt-in for piped commands
-- ☐ Regression-test the sandbox suite (`tests/test_tools.py`) plus new metacharacter-injection cases (`;`, `$(...)`, backticks, glob)
+### 1.1 RunCommandTool shell migration — ☑ P0
+- ☑ Replace `shell=True` with `shlex.split()` + `shell=False` as the default executor
+- ☑ Add explicit `allow_shell: bool = False` constructor opt-in for piped commands
+- ☑ Regression-test the sandbox suite (`tests/test_tools.py`) plus new metacharacter-injection cases (`;`, `$(...)`, backticks, glob)
 - **Acceptance**: no shell interpretation unless opted in; all 1,120+ tests green
 
-### 1.2 Audit log signing — ☐ P0
-- ☐ Add per-entry HMAC signature (`hmac.new(key, entry_hash).hexdigest()`) with env-injected key
-- ☐ `verify_chain(check_signatures=True)` — detects re-chaining forgeries, not just edits
-- ☐ Key-rotation tolerance: carry `key_id` in entry metadata
+### 1.2 Audit log signing — ☑ P0
+- ☑ Add per-entry HMAC signature (`hmac.new(key, entry_hash).hexdigest()`) with env-injected key
+- ☑ `verify_chain(check_signatures=True)` — detects re-chaining forgeries, not just edits
+- ☑ Key-rotation tolerance: carry `key_id` in entry metadata
 - **Acceptance**: tamper matrix extended — forged re-chained logs fail verification
 
 ### 1.3 CI workflow activation — ☐ P0
@@ -72,15 +72,15 @@ flowchart TD
 - ☐ Preserve mock fallback for the deterministic test suite
 - **Acceptance**: 100 concurrent source requests, no blocking; existing gateway tests unchanged
 
-### 2.2 Batch trace writer — ☐ P1
-- ☐ `TraceStore.record_batch(records)` — single transaction for N records
-- ☐ Reflex tier buffers decisions (flush at 50 records or 500ms)
-- ☐ Benchmark vs per-statement autocommit (target ≥3× the 5,377 rec/s baseline)
+### 2.2 Batch trace writer — ☑ P1
+- ☑ `TraceStore.record_batch(records)` — single transaction for N records
+- ☑ Reflex tier buffers decisions (flush at 50 records or 500ms)
+- ☑ Benchmark vs per-statement autocommit (target ≥3× the 5,377 rec/s baseline)
 - **Acceptance**: stress suite re-run with new numbers recorded in `TechBragging.md`
 
-### 2.3 Parallel rule evaluation — ☐ P1
-- ☐ `QualitativeLinter.run_full_audit()` evaluates the 6 rules concurrently (ThreadPoolExecutor; rules are pure functions)
-- ☐ Latency assertion: full audit ≤ slowest single rule + 20%
+### 2.3 Parallel rule evaluation — ☑ P1
+- ☑ `QualitativeLinter.run_full_audit()` evaluates the 6 rules concurrently (ThreadPoolExecutor; rules are pure functions)
+- ☑ Latency assertion: full audit ≤ slowest single rule + 20%
 - **Acceptance**: 6-rule audit p95 < 150ms under mock backend
 
 ---
@@ -89,19 +89,19 @@ flowchart TD
 
 *Goal: eliminate the prose-token false positives documented in R1 (8 remaining N+1 FPs).*
 
-### 3.1 Pattern signals — ☐ P1
-- ☐ Extend `Rubric.required_signals` to accept **patterns** (`objects.get(`, `objects.filter(`, `session.query(`) not just bare tokens
-- ☐ Mock backend honors pattern matching before scoring applies
+### 3.1 Pattern signals — ☑ P1
+- ☑ Extend `Rubric.required_signals` to accept **patterns** (`objects.get(`, `objects.filter(`, `session.query(`) not just bare tokens
+- ☑ Mock backend honors pattern matching before scoring applies
 - **Acceptance**: N+1 rule fires on ORM manager calls only; `dict.get()` loops score 0
 
-### 3.2 Prose suppression — ☐ P1
-- ☐ Token-source tagging in mock backend: distinguish code tokens from docstring/comment tokens
-- ☐ Required-signal matching ignores prose regions
+### 3.2 Prose suppression — ☑ P1
+- ☑ Token-source tagging in mock backend: distinguish code tokens from docstring/comment tokens
+- ☑ Required-signal matching ignores prose regions
 - **Acceptance**: `config.py` ("Surface objects" docstring) produces no N+1 flag; R2 rescan ≤ 2 findings
 
-### 3.3 Corpus fixtures in CI — ☐ P1
-- ☐ Freeze the 40-file R1 scan as `tests/fixtures/reflex_corpus_r1.json`
-- ☐ Every rubric patch auto-evaluates against the frozen corpus in CI (regression metric: FP count per 40 files)
+### 3.3 Corpus fixtures in CI — ☑ P1
+- ☑ Freeze the 40-file R1 scan as `tests/fixtures/reflex_corpus_r1.json`
+- ☑ Every rubric patch auto-evaluates against the frozen corpus in CI (regression metric: FP count per 40 files)
 - **Acceptance**: rubric PRs show corpus delta in the Step Summary; FP regressions block
 
 ```mermaid
@@ -192,8 +192,8 @@ flowchart LR
 - ☐ Ship `.pre-commit-config.yaml` (black, ruff, mypy, trailing whitespace)
 - **Acceptance**: `pre-commit run --all-files` green
 
-### 7.4 Flaky test hardening — ☐ P2
-- ☐ Rewrite `test_concurrent_readers_and_writers` with deterministic scheduling (barrier + bounded readers)
+### 7.4 Flaky test hardening — ☑ P2
+- ☑ Rewrite `test_concurrent_readers_and_writers` with deterministic scheduling (barrier + bounded readers)
 - **Acceptance**: 20 consecutive suite runs, zero pool-stress flakes
 
 ---
