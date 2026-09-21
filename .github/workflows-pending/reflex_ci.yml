@@ -1,0 +1,69 @@
+name: Reflex CI (System 1 Pre-Screen)
+
+# Dogfood pipeline: the Harness Framework guards its own repository.
+# Phase R1 (advisory): findings are annotated, never blocking.
+# Promotion to R3 (gating) requires FP block rate < 2% over 2 advisory weeks.
+# See REFLEX_PLAN.md §6 for the phased-autonomy criteria.
+
+on:
+  pull_request:
+    branches: [main, develop]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  reflex-prescreen:
+    name: System 1 Millisecond Qualitative Audit
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install harness
+        run: pip install -e .
+
+      - name: Run reflex pre-screen (advisory)
+        env:
+          TYPESAFE_API_KEY: ${{ secrets.TYPESAFE_API_KEY }}  # optional; mock backend used when absent
+          REFLEX_AUTONOMY_PHASE: advisory                     # shadow | advisory | gating
+        run: |
+          PYTHONPATH=src python3 -m harness.reflex \
+            --diff HEAD~1 HEAD \
+            --phase "$REFLEX_AUTONOMY_PHASE" \
+            --summary "$GITHUB_STEP_SUMMARY"
+
+      - name: Comment findings on PR
+        if: failure()  # only reached in gating phase
+        uses: actions/github-script@v7
+        with:
+          script: |
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: '⚡ **Reflex CI**: System 1 pre-screen flagged findings. See Step Summary for probabilities, scores, and recommendations. Escalated snippets have been forwarded for System 2 review.'
+            })
+
+  reflex-metrics:
+    name: Reflex KPI Snapshot
+    runs-on: ubuntu-latest
+    needs: reflex-prescreen
+
+    steps:
+      - name: Emit KPI snapshot
+        run: |
+          echo "Reflex KPI snapshot (see REFLEX_PLAN.md §6):"
+          echo "- decision latency p95 target: < 300ms"
+          echo "- escalation-rate healthy band: 5–15%"
+          echo "- advisory-phase FP ceiling: < 2%"
+          echo "Metrics are recorded to TraceStore by the reflex tier."
