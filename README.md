@@ -1,520 +1,315 @@
 # Harness Framework
 
-[![CI](https://github.com/your-org/harness-framework/actions/workflows/ci.yml/badge.svg)](https://github.com/your-org/harness-framework/actions/workflows/ci.yml)
-[![Python](https://img.shields.io/badge/python-3.10%2B-blue)](https://www.python.org/)
-[![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
-[![Tests](https://img.shields.io/badge/tests-758%20passing-brightgreen)]()
+[![Version](https://img.shields.io/badge/version-0.4.2-b07d3c)](https://github.com/auge2u/harness-framework/blob/main/CHANGELOG.md)
+[![Tests](https://img.shields.io/badge/tests-1120%20passing-5d7a5d)](https://github.com/auge2u/harness-framework)
+[![Python](https://img.shields.io/badge/python-3.10%2B-4a6b8a)](https://www.python.org/)
+[![License](https://img.shields.io/badge/license-MIT-5d7a5d)](LICENSE)
+[![Surfaces](https://img.shields.io/badge/declared%20surfaces-19-8a6d4a)](https://github.com/auge2u/harness-framework/blob/main/README.md#22-architecture-overview)
+[![Proof](https://img.shields.io/badge/proof%20milestone-live-b07d3c)](https://github.com/auge2u/harness-framework/blob/main/PROOF.md)
 
-> A self-validating, self-improving agent runtime with knowledge graph memory and swarm orchestration.
-
-The Harness Framework treats every component of an AI agent system — prompts, tools, memory, sandbox, routing, evaluators — as editable, versioned, optimizable artifacts. It enables both **bounded self-improvement** (the harness proposes, evaluates, and accepts its own patches) and **external harness search** (coding agents propose patches via a filesystem interface).
-
-**Key innovation**: Agents collaborate via a shared **knowledge graph** rather than passing raw context windows, achieving 99%+ token reduction for multi-hop reasoning tasks.
+> **CI/CD for AI agents** — a self-validating, self-improving control plane that tests agent behavior, gates every change, routes work at millisecond reflex speed, and improves itself under verifiable governance.
 
 ---
 
-## Table of Contents
+## 1. Product Brief & Marketing Summary
 
-- [Quick Start](#quick-start)
-- [Core Concepts](#core-concepts)
-- [18 Declared Surfaces](#18-declared-surfaces)
-- [Architecture](#architecture)
-- [Installation](#installation)
-- [Usage](#usage)
-- [Knowledge Graph](#knowledge-graph)
-- [Swarm Orchestration](#swarm-orchestration)
-- [Lifecycle Hooks](#lifecycle-hooks)
-- [Development](#development)
-- [Project Context](#project-context)
-- [License](#license)
+### 1.1 The Problem
+
+AI agents are going into production with **no control plane**. Code has CI/CD — every change is tested, gated, and reversible. Agent behavior has nothing:
+
+- **Behavior is untested** — prompts, tools, and routing change by edit-and-pray; there is no "did this break the agent?" check.
+- **Verification is unaffordable at scale** — LLM-judged review of every action costs seconds and cents per decision; nobody can check everything, every time.
+- **Agents can't remember together** — each agent's knowledge dies with its context window; multi-agent systems pass ever-growing summaries until they drown in tokens.
+- **Self-improvement is ungoverned** — an agent that rewrites its own instructions with no gates, no inverse, and no audit trail is a liability, not a feature.
+
+### 1.2 The Value Proposition
+
+The Harness Framework is the missing control plane. It treats every component of an agent system — prompts, tools, memory, sandbox, routing, evaluators, even its own quality rubrics — as **declared, versioned, patchable artifacts**, then wraps them in a two-tier decision architecture:
+
+- **System 1 reflexes** (`bool` / `score` / `choice` primitives) answer in **100–300ms for ~$0.00004** — cheap enough to check *everything*.
+- **System 2 reasoning** (scenarios, verifiers, patch generation) engages only where reflexes escalate — expensive thinking reserved for what deserves it.
+- **A governance spine** (invertible patches, 8 acceptance gates, promotion pipeline, hash-chained audit log) makes every change — including the system's improvements to itself — **testable, reversible, and provable**.
+
+### 1.3 Key Features
+
+| Feature | What it does | Why it matters |
+|---|---|---|
+| ⚡ **Two-tier reflex architecture** | Millisecond probabilistic pre-screening (`bool`/`score`/`choice`) with confidence-based escalation to System 2 | 10x context reduction; verification you can afford on every PR |
+| 🔄 **Governed self-improvement** | Every edit is a `HarnessPatch` with an auto-computed inverse, evaluated through 8 acceptance gates and a promotion pipeline | Agents that improve themselves *without* going out of control |
+| 🕸️ **Knowledge-graph memory** | 4-stage pipeline (extract → resolve → assemble → query) gives agents shared, persistent, provenance-tracked memory | ~99% token reduction on multi-hop reasoning; memory survives context flushes |
+| 🐝 **Swarm orchestration** | Work-stealing parallel agents with consensus aggregation and dissent detection | 3–5x speedup *and* explicit disagreement signals instead of averaged-away uncertainty |
+| 📈 **Meta-refinement loop** | Quality rubrics are versioned artifacts; the system audits its own reflex decisions and ships rubric patches through the same governed pipeline | Measured, not vibes: one rubric patch cut dogfood findings **75%** ([evidence](docs/reflex_baseline_r1.md)) |
+
+### 1.4 Who It's For
+
+- **AI platform engineers** building agent infrastructure who need behavioral regression testing and safe rollout.
+- **Agent framework developers** who want governance primitives (patches, gates, promotion) instead of building them from scratch.
+- **Security-conscious engineering orgs** that need millisecond pre-screening (secrets, OWASP, policy invariants) in front of expensive LLM review.
+- **Research teams** studying bounded self-improvement, agent memory, and multi-agent coordination.
+
+**Primary use cases**: agent CI/CD pipelines · PR security & quality pre-screening · multi-agent shared memory · governed self-modifying systems · agent behavior benchmarking.
+
+### 1.5 See It Working (Proof Milestone)
+
+- 🔗 **Live PR demonstration**: [PR #1 — reflex scan + closed-loop remediation on a real pull request](https://github.com/auge2u/harness-framework/pull/1)
+- 📊 **Measured self-improvement**: [R0 → R1 baseline: 32 → 8 findings (−75%)](docs/reflex_baseline_r1.md)
+- 📦 **Evidence index**: [PROOF.md](PROOF.md) — every artifact, every number, reproduction commands
 
 ---
 
-## Quick Start
+## 2. Technical Details
+
+### 2.1 Technology Stack
+
+| Layer | Technology | Notes |
+|---|---|---|
+| Language | **Python 3.10+** | Fully type-hinted, `from __future__ import annotations` throughout |
+| Storage | **SQLite (WAL)** | TraceStore with connection pooling (5,377 rec/s under 100 threads); content-addressed snapshot store; hash-chained JSONL audit log |
+| Graph | **NetworkX (optional)** | Pure-Python `MultiDiGraph` fallback when unavailable — zero hard graph dependency |
+| Runtime deps | **2** (`pyyaml`, `networkx`) | Stdlib-first design; everything else optional |
+| Testing | **pytest + pytest-asyncio** | 1,120 tests, ~15s runtime, **zero network** (deterministic mock backends) |
+| CI | **GitHub Actions** | Reflex pre-screen workflow (advisory → gating phases) |
+
+### 2.2 Architecture Overview
+
+The system is organized as **two cognitive tiers on a shared governance spine**, with **19 declared surfaces** as the vocabulary for everything it can test and change.
+
+```mermaid
+flowchart TB
+    subgraph S2["🧠 TIER 2 — System 2 (deliberate)"]
+        SC[Scenarios & Verifiers]
+        AG[AcceptanceSuite — 8 gates]
+        SH[SelfHarnessLoop]
+        SW[SwarmCoordinator]
+        KG[KnowledgeGraphPipeline]
+        PG[Patch generation]
+    end
+
+    subgraph S1["⚡ TIER 1 — System 1 (reflexive) · 100–300ms"]
+        PR["bool / score / choice primitives"]
+        QL[QualitativeLinter — 6 rules]
+        RR["ReflexRouter — ≤255 skills"]
+        RG[ReflexGate + semantic hooks]
+        EP[EscalationPolicy]
+    end
+
+    subgraph GS["🦴 GOVERNANCE SPINE (shared)"]
+        TS[TraceStore + pool]
+        SS[Content-addressed snapshots]
+        AU[Hash-chained audit log]
+        PE[PolicyEngine]
+        PP[PromotionPipeline]
+        RU["19th surface: reflex rubrics"]
+    end
+
+    PR & QL & RR & RG --> EP
+    EP -- "score ≥ 7 · p ≥ 0.85 · low confidence" --> S2
+    SH -- "rubric patches (auto-inverse)" --> RU
+    S1 -.-> TS
+    S2 -.-> TS
+    PE & PP --- SH
+    AU --- TS
+```
+
+**The 19 declared surfaces**: identity · instructions · tools · skills · mcps · memory · sandbox · model_defaults · routing · orchestration · data_gateway · evaluator · telemetry · artifacts · secrets_policy · policy_engine · knowledge_graph · swarm · **reflex** *(rubrics)*.
+
+### 2.3 The Self-Improvement Loop
+
+```mermaid
+sequenceDiagram
+    participant R as Reflex tier
+    participant L as Decision logs (TraceStore)
+    participant M as MetaRefinementAnalyzer
+    participant G as AcceptanceSuite (8 gates)
+    participant P as PromotionPipeline
+
+    R->>L: every decision (value, confidence, escalate)
+    L->>M: audit vs System 2 outcomes
+    M->>M: propose HarnessPatch on reflex surface<br/>with auto-inverse
+    M->>G: evaluate on HELD-OUT logs
+    G-->>M: precision Δ +0.81 · recall guard ≤5%
+    M->>P: PROPOSED → EVALUATED → ACCEPTED
+    P->>R: rubric v2.0.0 live (lineage preserved)
+    Note over R: dogfood findings 32 → 8 (−75%)
+```
+
+### 2.4 Directory Structure
+
+```
+harness-framework/
+├── src/harness/
+│   ├── core/            # types, config, registry, exceptions — 19 surfaces
+│   ├── reflex/          # ⚡ System 1: backend, primitives, rubrics, linter,
+│   │                    #   router, gates, escalation, meta-refinement, CI
+│   ├── graph/           # 🕸️ knowledge graph: extract→resolve→assemble→query
+│   ├── swarm/           # 🐝 coordinator, work-stealing queue, consensus
+│   ├── lifecycle/       # hooks, approval modes, semantic (reflex) gates
+│   ├── runners/         # SingleRunner, CircuitRunner (parallel variants)
+│   ├── loops/           # SelfHarnessLoop, MetaHarnessLoop
+│   ├── store/           # TraceStore, connection pool, snapshots
+│   ├── analysis/        # failure clusterer, lineage
+│   ├── scenarios/  verifiers/  gateway/  telemetry/  plugins/  utils/
+│   ├── audit.py         # hash-chained immutable audit log
+│   ├── policy.py        # PolicyEngine (scope, privilege, secrets, prompts)
+│   ├── acceptance.py    # 8 acceptance gates
+│   ├── promotion.py     # PROPOSED→EVALUATED→QUARANTINED→ACCEPTED|REJECTED|REVERTED
+│   ├── patch.py         # HarnessPatch (invertible edit primitive)
+│   ├── agent_backend.py # AgentBackend ABC + Mock/OpenAI/Anthropic
+│   └── cli.py           # run · evolve · variants · validate
+├── tests/               # 34 files · 1,120 tests · zero network
+├── docs/                # architecture, baselines R0/R1, sphinx
+├── .github/workflows-pending/  # CI + reflex workflows (one git mv to activate)
+├── PROOF.md             # evidence index (live PR, dashboard, measurements)
+├── REFLEX_PLAN.md       # two-tier strategy & phased autonomy R0–R5
+├── ROADMAP.md           # re-tiered T1/T2 tracks, waves A–E
+└── PROJECT_CONTEXT.md   # full design history & decision log
+```
+
+### 2.5 Core Functionality
+
+| Subsystem | Implementation |
+|---|---|
+| **Reflex primitives** | `ReflexBackend` ABC (`bool_check`/`score_check`/`choice_check`); deterministic `MockReflexBackend`; `JevBackend` HTTP client with graceful fallback |
+| **Qualitative linting** | 6 rubric-driven rules: secret leakage, function side-effects, comment quality, diff risk, N+1 ORM, OWASP (SQLi/RCE/XSS/BAC) |
+| **Governance** | `PolicyEngine.validate_patch()` → `AcceptanceSuite` (regression, diff-scope, security, traceability, rollback, cost, determinism) → `PromotionPipeline` |
+| **Memory** | `KnowledgeGraphPipeline`: entity extraction → Jaccard resolution → MultiDiGraph assembly → multi-hop query with provenance citations |
+| **Swarm** | Chase-Lev work-stealing, consensus reports with dissent detection, early termination at agreement threshold, cost budgets |
+| **Observability** | Every decision a `TraceRecord`; time-series/trend/anomaly analytics; FinOps cost tracking per surface |
+| **Integrity** | SHA-256-chained `AuditLog` (tamper-evident: detects modify/delete/reorder/truncate); content-addressed snapshots with dedupe |
+
+### 2.6 Integration Points
+
+| Interface | How to integrate |
+|---|---|
+| **CLI** | `harness validate <config.yaml>` · `harness run <suite>` · `harness evolve` · `harness variants` |
+| **Reflex CI** | `python3 -m harness.reflex --diff BASE HEAD --phase {shadow,advisory,gating} --summary $GITHUB_STEP_SUMMARY` |
+| **GitHub Action** | `.github/workflows-pending/reflex_ci.yml` — move to `.github/workflows/` to activate |
+| **Python API** | `import harness` — 131 public exports (see `src/harness/__init__.py`) |
+| **Backends** | Implement `AgentBackend` (LLM execution) or `ReflexBackend` (classification) ABCs |
+| **Plugins** | 16 surface-specific plugin ABCs + `KnowledgeGraphPlugin`, `SwarmOrchestrationPlugin` |
+| **MCP** | Adapter planned (Wave E) — expose surfaces as MCP tools |
+
+---
+
+## 3. Roadmap
+
+### 3.1 Current Status: **Beta** (v0.4.2)
+
+The core runtime is feature-complete and proof-validated: 1,120 tests passing, live PR demonstration, measured self-improvement loop. APIs may still evolve before 1.0.
+
+### 3.2 Upcoming (execution waves)
+
+```mermaid
+flowchart LR
+    A["Wave A<br/>reflex foundation<br/>✅"] --> B["Wave B<br/>deployment<br/>✅"]
+    B --> C["Wave C<br/>governance<br/>✅"]
+    C --> D["Wave D<br/>scale<br/>◻ next"]
+    D --> E["Wave E<br/>experience<br/>◻"]
+    E --> F["1.0<br/>stable API<br/>◻"]
+```
+
+| Wave | Contents | Timeline |
+|---|---|---|
+| **D — Scale** | Tool Gateway (MCP unification), AgentBackend in Runner, async DataGateway, Parquet/OTel export, swarm task routing via `choice` | Next 1–2 milestones |
+| **E — Experience** | Health endpoint, live TraceStore dashboard, MCP adapter for 19 surfaces | Following milestone |
+| **Reflex v3 rubrics** | Pattern signals, prose suppression, corpus fixtures in CI (from [R1 backlog](docs/reflex_baseline_r1.md)) | Continuous (meta-refinement) |
+| **1.0** | API freeze, production backend guides, published rubric packs | After Waves D–E |
+
+### 3.3 Long-Term Vision
+
+The default control plane for agent systems: the layer every serious agent deployment runs through — the way no serious team ships code without CI. Bounded self-improvement as standard infrastructure: agents that get better, measurably, without ever becoming unaccountable.
+
+### 3.4 Where Contributions Matter Most
+
+- 🔌 **Real backend implementations** — production `OpenAIBackend`/`AnthropicBackend` bodies; local classifier-head `ReflexBackend`
+- 📦 **Rubric packs** — domain rubrics (security, performance, style) as shareable versioned artifacts
+- 📊 **Live dashboard** — TraceStore-backed web UI (Wave E scaffold exists)
+- 🔗 **MCP adapter** — bridge the 19 surfaces to the Model Context Protocol ecosystem
+- 🧪 **Corpus contributions** — labeled decision logs to strengthen meta-refinement evaluation
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for the patch-proposal process — fittingly, harness improvements to this repo go through the harness's own gates.
+
+---
+
+## 4. Developer Guide
+
+### 4.1 Installation
 
 ```bash
-# Install
-pip install harness-framework
-
-# Or install from source
-pip install -e ".[dev]"
-
-# Run the CLI
-harness --help
-
-# Run all 758 tests
-make test
-```
-
-```python
-from harness import HarnessConfig, Surface, SurfaceType
-from harness.graph import KnowledgeGraphPipeline
-from harness.agent_backend import MockBackend
-
-# Build a knowledge graph from documents
-pipeline = KnowledgeGraphPipeline(backend=MockBackend())
-graph = pipeline.build([
-    "Neil Armstrong walked on the Moon during Apollo 11.",
-    "Buzz Aldrin was the second person to walk on the Moon.",
-    "Apollo 11 launched from Kennedy Space Center.",
-])
-
-# Query with multi-hop reasoning
-result = pipeline.query("Who walked on the Moon?")
-print(result)
-# {'answer': 'Neil Armstrong and Buzz Aldrin', 'citations': [...]}
-```
-
----
-
-## Core Concepts
-
-### Harness as Editable Artifact
-
-Every component is a **declared surface** that can be versioned, diffed, patched, and reverted:
-
-```python
-patch = HarnessPatch(
-    patch_id="p-001",
-    surface="tools",
-    target_id="ReadFileTool",
-    operation=PatchOperation.REPLACE,
-    before={"allowed_paths": ["/tmp"]},
-    after={"allowed_paths": ["/tmp", "/data"]},
-    inverse=...,  # Automatically computed
-    motivation="Allow reading from /data directory",
-)
-```
-
-### Self-Improvement Loop
-
-```
-Propose patch → Evaluate on held-in scenarios
-                    ↓
-            Evaluate on held-out scenarios
-                    ↓
-            Run AcceptanceSuite gates
-                    ↓
-            PolicyEngine.validate_patch()
-                    ↓
-            PromotionPipeline: PROPOSED → ACCEPTED
-                    ↓
-            Apply or Reject
-```
-
-### Bounded Self-Improvement
-
-- Proposals are constrained to declared surfaces
-- Every patch has an automatically computed inverse
-- 8 mandatory acceptance gates: regression, diff_scope, security, traceability, rollback, held-out protection, prompt safety, artifact leakage
-- Promotion pipeline: PROPOSED → EVALUATED → QUARANTINED → ACCEPTED | REJECTED | REVERTED
-
----
-
-## 18 Declared Surfaces
-
-| # | Surface | Description | Plugin Class |
-|---|---------|-------------|--------------|
-| 1 | `identity` | Agent identity and persona | `IdentityPlugin` |
-| 2 | `instructions` | System prompts and instructions | `InstructionPlugin` |
-| 3 | `tools` | Tool definitions and schemas | `ToolPlugin` |
-| 4 | `skills` | Reusable skill modules | `SkillPlugin` |
-| 5 | `mcps` | MCP server connections | `McpPlugin` |
-| 6 | `memory` | Ephemeral context memory | `MemoryPlugin` |
-| 7 | `sandbox` | Execution environment | `SandboxPlugin` |
-| 8 | `model_defaults` | Default model parameters | `BackendPlugin` |
-| 9 | `routing` | Request routing logic | `RouterPlugin` |
-| 10 | `orchestration` | Agent coordination | `OrchestrationPlugin` |
-| 11 | `data_gateway` | External data access | `DataGatewayPlugin` |
-| 12 | `evaluator` | Output verification | `VerifierPlugin` |
-| 13 | `telemetry` | Metrics and observability | `ReporterPlugin` |
-| 14 | `artifacts` | Generated artifacts | `ArtifactPlugin` |
-| 15 | `secrets_policy` | Secret management | `SecretsPlugin` |
-| 16 | `policy_engine` | Edit permission policies | `PolicyPlugin` |
-| 17 | **`knowledge_graph`** | Persistent structured memory | `KnowledgeGraphPlugin` |
-| 18 | **`swarm`** | Parallel agent coordination | `SwarmOrchestrationPlugin` |
-
----
-
-## Architecture
-
-```
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                           Harness Framework v0.3.0                          │
-├─────────────────────────────────────────────────────────────────────────────┤
-│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐   │
-│  │   CLI Layer  │  │  SelfHarness │  │  MetaHarness │  │   Circuit    │   │
-│  │   (Rich)     │  │    Loop      │  │   (Git)      │  │   Runner     │   │
-│  └──────┬───────┘  └──────┬───────┘  └──────┬───────┘  └──────┬───────┘   │
-│         └─────────────────┴─────────────────┴─────────────────┘             │
-│                                    │                                        │
-│                    ┌───────────────┴───────────────┐                        │
-│                    │        Core Engine              │                        │
-│                    │  ┌─────────┐ ┌──────────────┐ │                        │
-│                    │  │ Plugin  │ │   Harness    │ │                        │
-│                    │  │Registry │ │   Config     │ │                        │
-│                    │  └────┬────┘ └──────────────┘ │                        │
-│                    │       └───────────┬─────────────┘                        │
-│                    └───────────────────┼────────────────────────────────────┘
-│                                        │
-│  ┌─────────────┐  ┌─────────────┐  ┌─┴──────────┐  ┌─────────────┐         │
-│  │  Knowledge  │  │    Swarm    │  │  Policy    │  │  Acceptance │         │
-│  │    Graph    │  │ Orchestrator│  │  Engine    │  │   Suite     │         │
-│  │  (4-stage)  │  │(Work-Steal) │  │(Validation)│  │  (8 gates)  │         │
-│  └──────┬──────┘  └──────┬──────┘  └─────┬──────┘  └──────┬──────┘         │
-│         │                │                │                │               │
-│  ┌──────┴──────┐  ┌──────┴──────┐  ┌──────┴──────┐  ┌──────┴──────┐       │
-│  │  Extract    │  │  Lifecycle  │  │  Promotion  │  │   Trace     │       │
-│  │  Resolve    │  │    Hooks    │  │  Pipeline   │  │   Store     │       │
-│  │  Assemble   │  │  (Approval)  │  │  (States)   │  │ (SQLite)   │       │
-│  │  Query      │  │  (Audit)     │  │  (Lineage)  │  │ (Analytics)│       │
-│  └─────────────┘  └─────────────┘  └─────────────┘  └─────────────┘       │
-│                                                                              │
-│  ┌─────────────────────────────────────────────────────────────────────┐    │
-│  │                     Agent Backends + Tools                           │    │
-│  │  ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌────────────────────────┐ │    │
-│  │  │  Mock    │ │  OpenAI  │ │ Anthropic│ │ ToolRegistry (Sandbox) │ │    │
-│  │  │ (Tests)  │ │  (API)   │ │  (API)   │ │ Read/Write/RunCommand  │ │    │
-│  │  └──────────┘ └──────────┘ └──────────┘ └────────────────────────┘ │    │
-│  └─────────────────────────────────────────────────────────────────────┘    │
-└─────────────────────────────────────────────────────────────────────────────┘
-```
-
----
-
-## Installation
-
-### From PyPI (when published)
-
-```bash
-pip install harness-framework
-```
-
-### From Source
-
-```bash
-git clone https://github.com/your-org/harness-framework.git
+git clone https://github.com/auge2u/harness-framework.git
 cd harness-framework
-pip install -e ".[dev]"
+pip install -e ".[dev]"     # runtime + test/lint/type tooling
 ```
 
-### Requirements
+**Requirements**: Python 3.10+ · deps: `pyyaml`, `networkx` (optional, pure-Python fallback included).
 
-- Python 3.10+
-- `pyyaml` (runtime)
-- `networkx` (runtime, optional — pure-Python fallback available)
+### 4.2 Quick Start
 
----
+**Run the suite** — 1,120 tests, zero network:
 
-## Usage
+```bash
+PYTHONPATH=src python -m pytest tests/ -q
+```
 
-### 1. Define a Harness Configuration
+**Scan code with the reflex tier** (the 10-second demo):
+
+```bash
+PYTHONPATH=src python -m harness.reflex --files your_file.py --phase advisory
+```
+
+**Use it from Python**:
 
 ```python
-from harness import HarnessConfig, Surface, SurfaceType
+from harness import MockReflexBackend, ReflexPrimitives, QualitativeLinter
 
-config = HarnessConfig(
-    version="1.0.0",
-    name="my-agent",
-    surfaces=[
-        Surface(name="api", type=SurfaceType.API),
-        Surface(name="database", type=SurfaceType.DATABASE),
-        Surface(name="auth", type=SurfaceType.API),
-    ],
-    scenarios={...},
-    verifiers=[...],
+linter = QualitativeLinter(ReflexPrimitives(MockReflexBackend()))
+result = linter.evaluate_security_vulnerabilities(
+    "query = f\"SELECT * FROM users WHERE email = '{email}'\""
 )
+print(result.value, result.escalate)   # owasp_a03_sql_injection, True
 ```
 
-### 2. Run Scenarios
+**Validate a harness config**:
 
-```python
-from harness.runners import SingleRunner
-from harness.agent_backend import MockBackend
-
-runner = SingleRunner(config, backend=MockBackend())
-results = runner.run_all()
-
-for scenario, (verdict, score, latency, cost, raw) in results.items():
-    print(f"{scenario}: {verdict.value} (score={score:.2f}, cost=${cost:.4f})")
+```bash
+PYTHONPATH=src python -m harness.cli validate my_harness.yaml --strict
 ```
 
-### 3. Run Parallel Variants
-
-```python
-from harness.runners import CircuitRunner
-
-circuit = CircuitRunner(
-    config,
-    parallelism=4,
-    cost_budget_usd=10.0,
-)
-
-# Generate variants by mutating surfaces
-from harness.patch import HarnessPatch, PatchOperation
-
-variants = [
-    VariantConfig(name="baseline", harness=config),
-    VariantConfig(
-        name="temperature-0.5",
-        harness=config,
-        patches=[HarnessPatch(...)],
-    ),
-]
-
-results = circuit.run_all(variants, scenarios=["test-1", "test-2"])
-```
-
-### 4. Self-Improvement Loop
-
-```python
-from harness.loops import SelfHarnessLoop
-from harness.policy import PolicyEngine
-from harness.acceptance import AcceptanceSuite
-
-loop = SelfHarnessLoop(
-    config=config,
-    registry=registry,
-    trace_store=trace_store,
-    lineage=lineage,
-    clusterer=clusterer,
-    acceptance_suite=AcceptanceSuite([...]),
-    promotion_pipeline=promotion_pipeline,
-    policy_engine=PolicyEngine(tenant="default"),
-)
-
-proposal = loop.propose(config)  # Propose a patch
-metrics = loop.evaluate(proposal)  # Evaluate on held-in + held-out
-result = loop.decide(proposal, metrics)  # accept | reject | review
-```
-
----
-
-## Knowledge Graph
-
-The knowledge graph is the 17th surface — a persistent structured memory layer that replaces context-window passing for multi-agent collaboration.
-
-### 4-Stage Pipeline
+**Knowledge-graph memory**:
 
 ```python
 from harness.graph import KnowledgeGraphPipeline
 from harness.agent_backend import MockBackend
 
-pipeline = KnowledgeGraphPipeline(backend=MockBackend())
-
-# Stage 1: Extract entities and relations
-documents = [
-    "Acme Corp dropped prices 15% in Q3.",
-    "Acme Corp filed patent US-2024-XXXX for a new product.",
-    "Acme Corp R&D spending doubled in FY2024.",
-]
-
-# Stages 1-3: Build graph
-graph = pipeline.build(documents)
-
-# Stage 4: Query with multi-hop reasoning
-result = pipeline.query(
-    "What is Acme Corp's competitive strategy?",
-    center_entity="Acme Corp",
-    hops=2,
-)
-# Answer: "Acme Corp is pursuing a strategy of undercutting incumbents
-#          before launching a differentiated offering."
-# Citations: [(Acme Corp)-[dropped prices]->(15%), source: doc1],
-#            [(Acme Corp)-[filed]->(patent US-2024-XXXX), source: doc2]
+pipeline = KnowledgeGraphPipeline(MockBackend())
+pipeline.build(["Neil Armstrong walked on the Moon.",
+                "Buzz Aldrin was the second person to walk on the Moon."])
+print(pipeline.query("Who walked on the Moon?"))
 ```
 
-### Why Knowledge Graphs?
+### 4.3 Contributing
 
-| Problem | Context-Passing | Knowledge Graph |
-|---------|----------------|-----------------|
-| Multi-hop reasoning | 34% accuracy | 78% accuracy |
-| Token growth | Linear O(n) | Constant O(1) |
-| Cross-document facts | Lost in summaries | Preserved as edges |
-| Session persistence | Full re-process | Graph reload |
-| Provenance | None | Every edge cited |
+1. Fork, branch (`feat/<surface>-<description>`), and read [CONTRIBUTING.md](CONTRIBUTING.md).
+2. `make test` (1,120 green), `make lint`, `make type-check` before pushing.
+3. Conventional commits; PR template includes the surface checklist.
+4. **Harness patches welcome**: [`.github/ISSUE_TEMPLATE/harness_patch.md`](.github/ISSUE_TEMPLATE/harness_patch.md) — proposals with before/after, estimated impact, and rollback plan go through the AcceptanceSuite. The project governs itself with its own machinery.
+
+### 4.4 License & Acknowledgements
+
+**MIT** — see [LICENSE](LICENSE).
+
+Architectural influences, gratefully acknowledged:
+
+- **Anthropic** — *Building Effective AI Agents* (canonical agent patterns) and the Graph-Engineering Playbook (4-stage knowledge-graph pipeline, provenance discipline)
+- **Moonshot AI — Kimi Code** (agent swarm coordination, lifecycle hooks, approval modes)
+- **TypeSafe Jev primitives** (System 1 `bool`/`score`/`choice` reflex pattern, closed-loop remediation economics)
+- **Daniel Kahneman** — *Thinking, Fast and Slow* (the two-tier cognitive frame)
+
+All integrations are independent implementations; no third-party code is vendored.
 
 ---
 
-## Swarm Orchestration
-
-The swarm orchestrator coordinates parallel agents with work-stealing and consensus.
-
-```python
-from harness.swarm import SwarmCoordinator, SwarmTask
-
-coordinator = SwarmCoordinator(
-    max_workers=10,
-    consensus_threshold=0.8,
-    cost_budget_usd=5.0,
-    timeout_seconds=120.0,
-)
-
-task = SwarmTask(
-    task_id="analyze-1",
-    description="Review code for security issues",
-    task_type="verify",
-)
-
-report = coordinator.run(task)
-
-print(f"Agreement: {report.agreement_score:.0%}")
-print(f"Consensus: {report.consensus_output}")
-if report.dissenting_views:
-    print(f"Dissent: {len(report.dissenting_views)} workers disagreed")
-```
-
-### Features
-
-- **Dynamic task decomposition**: Breaks complex tasks into parallel subtasks
-- **Work-stealing**: Idle workers pull tasks from busy workers (Chase-Lev algorithm)
-- **Consensus aggregation**: Clusters results, identifies agreement and dissent
-- **Early termination**: Stops when consensus threshold is reached (20-40% cost savings)
-- **Cost budgets**: Enforces per-run spending limits
-- **Dependency ordering**: Respects task prerequisites
-
----
-
-## Lifecycle Hooks
-
-Lifecycle hooks provide safety gating around tool execution, patch proposals, and scenario runs.
-
-```python
-from harness.lifecycle import (
-    LifecycleManager,
-    DangerousCommandHook,
-    FileWriteApprovalHook,
-    CostBudgetHook,
-    instrument_tools,
-)
-from harness.tools import ToolRegistry, ReadFileTool, WriteFileTool
-
-# Create instrumented tool registry
-registry = ToolRegistry()
-registry.register(ReadFileTool(allowed_paths=["/project"]))
-registry.register(WriteFileTool(allowed_paths=["/project"]))
-
-manager = LifecycleManager()
-manager.register(DangerousCommandHook())      # Block rm -rf, curl | sh
-manager.register(FileWriteApprovalHook())     # Confirm file writes
-manager.register(CostBudgetHook(budget=10.0))  # Enforce cost budget
-
-# Wrap registry — all tool calls now go through hooks
-safe_registry = instrument_tools(registry, manager)
-```
-
-### Approval Modes
-
-| Mode | Behavior | Use Case |
-|------|----------|----------|
-| `AUTO` | Execute without confirmation | Safe operations, production |
-| `CONFIRM` | Pause for approval | File writes, destructive ops |
-| `SIMULATE` | Show what would happen | Dry runs, testing |
-| `NEVER` | Block entirely | Dangerous operations |
-| `REJECT` | Block and log | Policy violations |
-
----
-
-## Development
-
-```bash
-# Clone
-git clone https://github.com/your-org/harness-framework.git
-cd harness-framework
-
-# Install dev dependencies
-make install-dev
-
-# Run tests
-make test
-
-# Run tests with coverage
-make test-cov
-
-# Lint
-make lint
-
-# Format code
-make format
-
-# Type check
-make type-check
-
-# Build package
-make build
-
-# Clean artifacts
-make clean
-```
-
-### Project Structure
-
-```
-.
-├── src/harness/              # Source code
-│   ├── core/                 # Config, types, exceptions, registry
-│   ├── graph/                # Knowledge graph pipeline
-│   ├── swarm/                # Swarm orchestrator
-│   ├── lifecycle/            # Hooks + approval modes
-│   ├── runners/              # SingleRunner, CircuitRunner
-│   ├── loops/                # SelfHarness, MetaHarness
-│   ├── scenarios/            # Scenario ABC, loader, split
-│   ├── verifiers/            # Exact, fuzzy, JSON schema, LLM judge
-│   ├── store/                # TraceStore (SQLite)
-│   ├── analysis/             # Clusterer, lineage
-│   ├── gateway/              # DataGateway, scoring
-│   ├── telemetry/            # FinOps, metrics
-│   ├── plugins/              # Plugin base classes + implementations
-│   ├── tools.py              # Tool ABC + built-in tools
-│   ├── cli.py                # Rich CLI interface
-│   ├── policy.py             # PolicyEngine
-│   ├── acceptance.py         # Acceptance gates
-│   ├── promotion.py          # Promotion pipeline
-│   ├── patch.py              # HarnessPatch primitive
-│   ├── context.py            # RunContext, ExecutionScope
-│   ├── agent_backend.py      # Backend ABC + implementations
-│   ├── signals.py            # Signal handlers
-│   └── utils/                # Diffing, hashing
-├── tests/                    # Test suite (758 tests)
-├── docs/                     # Documentation
-├── .github/                  # CI/CD, issue templates
-├── pyproject.toml            # Package configuration
-├── Makefile                  # Development commands
-└── README.md                 # This file
-```
-
----
-
-## Project Context
-
-This project was developed through a series of structured sessions covering:
-
-1. **Architecture Design**: 17 declared surfaces, plugin architecture, HarnessPatch primitive
-2. **Governance Layer**: PolicyEngine, AcceptanceSuite, PromotionPipeline, TraceStore
-3. **Bundle Implementation**: 9 highest-priority improvements across governance, UX, data, security
-4. **Kimi Code Integration**: Swarm orchestration, lifecycle hooks, approval modes
-5. **Graph-Engineering Integration**: Knowledge graph pipeline (extract → resolve → assemble → query)
-
-See [PROJECT_CONTEXT.md](PROJECT_CONTEXT.md) for the complete development history, design decisions, and future roadmap.
-
----
-
-## References
-
-- **Kimi Code** (Moonshot AI): Agent swarm architecture, MCP-first design — [github.com/MoonshotAI/kimi-code](https://github.com/MoonshotAI/kimi-code)
-- **Graph-Engineering Playbook** (Anthropic): Knowledge graph pipeline, structured outputs — [Anthropic Cookbook](https://github.com/anthropics/anthropic-cookbook)
-- **Building Effective AI Agents** (Anthropic): Five canonical agent patterns
-
----
-
-## License
-
-[MIT License](LICENSE) — see LICENSE file for details.
-
-## Contributing
-
-See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
-
-## Changelog
-
-See [CHANGELOG.md](CHANGELOG.md) for version history.
+<p align="center">
+  <strong>The reflexes make the harness cheap; the harness makes the reflexes trustworthy.</strong><br>
+  <a href="PROOF.md">Proof</a> · <a href="ROADMAP.md">Roadmap</a> · <a href="PROJECT_CONTEXT.md">Context</a> · <a href="CHANGELOG.md">Changelog</a>
+</p>
